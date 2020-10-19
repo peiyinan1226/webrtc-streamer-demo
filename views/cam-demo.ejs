@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+<script src="../libs/request.min.js" ></script>
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<script src="../libs/webrtcstreamer.js" ></script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<title><%= camid %></title>
+<script>
+    var cam_id = "<%= camid %>";
+    window.onload         = function() {
+        this.webRtcServer = new WebRtcStreamer("remotevideo", "webrtc-streamer-serverIP:port");
+        document.getElementById("title").innerHTML = cam_id; 
+        webRtcServer.connect(cam_id, null, "rtptransport=tcp");	
+    }
+    window.onbeforeunload = function() { this.webRtcServer.disconnect() }
+</script>
+</head>
+<body>
+    <h2 id="title"></h2>
+    <div id="content">
+        <video id="remotevideo" muted playsinline controls></video>
+        <video id="recorded" playsinline loop></video>
+    </div>
+    <div>
+        <button id="record" >Start Recording</button>
+        <button id="play" disabled>Play</button>
+        <button id="close" disabled>Close</button>
+        <button id="download" disabled>Download</button>
+    </div>
+    <div>
+        <button id="btn-up" onClick="ctrl(this.id)">Up</button>
+        <button id="btn-down" onClick="ctrl(this.id)">Down</button>
+        <button id="btn-left" onClick="ctrl(this.id)">Left</button>
+        <button id="btn-right" onClick="ctrl(this.id)">Right</button>
+    </div>
+    <div>
+        <button id="btn_zoom_up" onClick="ctrl(this.id)">+</button>
+        <button id="btn_zoom_down" onClick="ctrl(this.id)">-</button>
+    </div>
+
+<script>
+    //record video
+    let camera = document.querySelector('video#remotevideo').captureStream();
+    let mediaRecorder;
+    let recordedBlobs;
+
+    const recordedVideo = document.querySelector('video#recorded');
+    const recordButton = document.querySelector('button#record');
+
+    const playButton = document.querySelector('button#play');
+    const closeButton = document.querySelector('button#close');
+    const downloadButton = document.querySelector('button#download');
+
+    recordButton.addEventListener('click', () => {
+        if(recordButton.textContent === 'Start Recording'){
+            startRecording();
+        } else{
+            stopRecording();
+            recordButton.textContent = 'Start Recording';
+            playButton.disabled = false;
+            closeButton.disabled = false;
+            downloadButton.disabled = false;
+        }
+    });
+
+    playButton.addEventListener('click', () => {
+        const superBuffer = new Blob(recordedBlobs, {type: 'video/webm'});
+        recordedVideo.src = null;
+        recordedVideo.srcObject = null;
+        recordedVideo.src = window.URL.createObjectURL(superBuffer);
+        recordedVideo.controls = true;
+        recordedVideo.play();
+    });
+
+    closeButton.addEventListener('click', () => {
+        recordedVideo.src = null;
+        recordedVideo.srcObject = null;
+        recordedVideo.controls = false;
+    });
+
+    downloadButton.addEventListener('click', () => {
+        const blob = new Blob(recordedBlobs, {type: 'video/webm'});
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'test.webm';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+    });
+
+    function handleDataAvailable(event) {
+        console.log('handleDataAvailable', event);
+        if (event.data && event.data.size > 0) {
+            recordedBlobs.push(event.data);
+        }
+    }
+
+    function startRecording() {
+        recordedBlobs = [];
+        let options = {mimeType: 'video/webm;codecs=vp9,opus'};
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.error(`${options.mimeType} is not supported`);
+            options = {mimeType: 'video/webm;codecs=vp8,opus'};
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.error(`${options.mimeType} is not supported`);
+            options = {mimeType: 'video/webm'};
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                console.error(`${options.mimeType} is not supported`);
+                options = {mimeType: ''};
+            }
+            }
+        }
+
+        try {
+            mediaRecorder = new MediaRecorder(camera, options);
+        } catch (e) {
+            console.error('Exception while creating MediaRecorder:', e);
+            return;
+        }
+
+        console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
+        recordButton.textContent = 'Stop Recording';
+        playButton.disabled = true;
+        closeButton.disabled = true;
+        downloadButton.disabled = true;
+        mediaRecorder.onstop = (event) => {
+            console.log('Recorder stopped: ', event);
+            console.log('Recorded Blobs: ', recordedBlobs);
+        };
+        mediaRecorder.ondataavailable = handleDataAvailable;
+        mediaRecorder.start();
+        console.log('MediaRecorder started', mediaRecorder);
+    }
+
+    function stopRecording() {
+        mediaRecorder.stop();
+    }
+
+</script>
+
+<script>
+    var url = 'ipcameraip/cgi-bin/camctrl?';
+
+    function ctrl(id) {
+        var pan = 0;
+        var tilt = 0;
+        var requesturl = '';
+
+        switch(id) {
+            case 'btn-up':
+                tilt = -1;
+                requesturl = url + 'pan='+pan+'&tilt='+tilt;
+                break;
+            case 'btn-down':
+                tilt = 1;
+                requesturl = url + 'pan='+pan+'&tilt='+tilt;
+                break;
+            case 'btn-left':
+                pan = -1;
+                requesturl = url + 'pan='+pan+'&tilt='+tilt;
+                break;
+            case 'btn-right':
+                pan = 1;
+                requesturl = url + 'pan='+pan+'&tilt='+tilt;
+                break;
+            case 'btn_zoom_up':
+                times = 'up';
+                requesturl = url + 'times='+times;
+                break;
+            case 'btn_zoom_down':
+                times = 'down';
+                requesturl = url + 'times='+times;
+                break;
+        }
+        $.getJSON(requesturl+'&callback=?',function(jsondata) {});
+    }
+
+</script>
+
+</body>
+</html>
