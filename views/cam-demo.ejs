@@ -9,7 +9,7 @@
 <script>
     var cam_id = "<%= camid %>";
     window.onload         = function() {
-        this.webRtcServer = new WebRtcStreamer("remotevideo", "webrtc-streamer-serverIP:port");
+        this.webRtcServer = new WebRtcStreamer("remotevideo", "http://localhost:8000");
         document.getElementById("title").innerHTML = cam_id; 
         webRtcServer.connect(cam_id, null, "rtptransport=tcp");	
     }
