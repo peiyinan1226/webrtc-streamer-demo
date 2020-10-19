@@ -1,9 +1,9 @@
-# 一个基于webrtc-streamer的RTSP转webrtc例子
+# Demo for rtsp to webrtc by webrtc-streamer
 
-首先你需要安装[webrtc-streamer](https://github.com/mpromonet/webrtc-streamer)作为你的媒体服务器。  
+The most important thing you need [webrtc-streamer](https://github.com/mpromonet/webrtc-streamer) for media server。  
 ```
 npm install
 
 npm start
 ```
-然后访问`http://localhost:3000`
+then access `http://localhost:3000`
